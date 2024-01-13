@@ -70,36 +70,56 @@ User defined `myCrusherTactic` somehow simplifies goals (unknown at the time we 
 
 ### Using MetavarContext to resolve arrows
 
-Other part of the TacticInfo node is how the metavariables context changed. Metavariable is a placeholder for a term that is not yet known during the process of creation of some other term. Metavariable context stores metavariable declarations and their assignments. During it's execution tactic will assign terms to some metavariables, possibly creating new metavariables as placeholders for parts of these terms.
+![TacticInfo](/assets/img/tacticinfo.png)
 
-This gradual clarification of the goal proof term structure through intermediate goals is exactly what proof tree is trying to visualize. We can illustrate it with myCrusherTactic example:
+Other part of the `TacticInfo` node is how the metavariables context changed. Metavariable is a placeholder for a term that is not yet known during the process of creation of some other term. Metavariable context stores metavariable declarations and their assignments. During it's execution tactic will assign terms to some metavariables, possibly creating new metavariables as placeholders for parts of these terms.
 
-As we see from the term assignment to the goals - myCrusherTactic tries to split all And goals into underlying parts. During this process it introduces new metavariables as placeholders substituting parts of the assigned terms. The correspondence between goalsBefore and newly introduced goals it splits into is easy to establish from the assignment and we can draw arrows in the proof tree accordingly.
+This gradual clarification of the goal proof term structure through intermediate goals is exactly what proof tree is trying to visualize. We can illustrate it with `myCrusherTactic` example:
 
-Let's see how we can differentiate swap; assumption and focus looking at the assignments:
+![Mctx custom tactic](/assets/img/mctxcustomtactic.png)
 
-As expected focus assigns nothing and therefore generates no arrows, whether swap; assumption finds the term (a hypothesis left-cross) which closes mvar2. Seeing a specific hypothesis in the assignment also allows us to connect assumption tactic with a hypothesis used in the proof tree visualisation:
+As we see from the term assignment to the goals - `myCrusherTactic` tries to split all `And` goals into underlying parts. During this process it introduces new metavariables as placeholders substituting parts of the assigned terms. The correspondence between `goalsBefore` and newly introduced goals it splits into is easy to establish from the assignment and we can draw arrows in the proof tree accordingly.
 
-How to connect all arrows into a single tree
+Let's see how we can differentiate `swap; assumption` and `focus` looking at the assignments:
+
+![Mctx same pair tactic](/assets/img/mctxassumptionfocus.png)
+
+As expected `focus` assigns nothing and therefore generates no arrows, whether `swap; assumption` finds the term (a hypothesis `left-cross`) which closes `mvar2`. Seeing a specific hypothesis in the assignment also allows us to connect `assumption` tactic with a hypothesis used in the proof tree visualisation:
+
+![Connect hyps](/assets/img/usedhyp.png)
+
+### How to connect all arrows into a single tree
+
+![Disjoint tree](/assets/img/disjointproofs.png)
 
 However extracting all arrows information per the algorithm above doesn't guarantee that we will get a connected tree. The reason for that being that arrows not necessarily have the same granularity.
 
 Above you can see the visualisation of the following proof:
 
-From the point of view of the Lean.Elab.Tactic.evalCases elaborator (orchestrating when to call rewrites and how to combine match alternatives) the initial goal is closed after it's application. However the information other elaborators contributed inside it's elaboration subtree isn't connected to the initial goal.
+![rw example](/assets/img/caseswithrw_example.png)
 
-It may seem like we could infer it by looking at the metavarContext, however:
+From the point of view of the `Lean.Elab.Tactic.evalCases` elaborator (orchestrating when to call rewrites and how to combine match alternatives) the initial goal is closed after it's application. However the information other elaborators contributed inside it's elaboration subtree isn't connected to the initial goal.
 
-By the time we're looking at the assignment to mvar1 some mvars which we are interested to establish relationship with might already be instantiated. The only reliable method for us to establish the relationship between user visible goals is by observing how unassigned mvars (aka goals) in mctxBefore connect with unassigned mvars in mctxAfter. However when these probes of the world state are recorded is at the tactic author discretion. The granularity of these probes might vary. We can't rely that users will push Info node on how the state was prepared before it recursively delegated to other elaborators. To establish the relationship between granularities we will need another trick.
+It may seem like we could infer it by looking at the `metavarContext`, however:
+
+![Metavariable assignments](/assets/img/mctxassignment.png)
+
+By the time we're looking at the assignment to `mvar1` some mvars which we are interested to establish relationship with might already be instantiated. The only reliable method for us to establish the relationship between user visible goals is by observing how unassigned `mvars` (aka goals) in `mctxBefore` connect with unassigned mvars in `mctxAfter`. However when these probes of the world state are recorded is at the tactic author discretion. The granularity of these probes might vary. We can't rely that users will push `Info` node on how the state was prepared before it recursively delegated to other elaborators. To establish the relationship between granularities we will need another trick.
 
 ### Spawned goals
 
-Relative location of TacticInfo nodes inside InfoTree can be used to infer what tactics were contributing to construction of the proof term for the outer tactic. In the InfoTree subtree for cases tactic we can see all low-level granularity TacticInfo nodes.
+![Disjoint tree](/assets/img/spawnedgoals_example.png)
+![Spawned goals](/assets/img/spawnedgoals_infotree.png)
 
-How do we establish which TacticInfo nodes goals we should directly connect to the goalBefore of the outer cases tactic? Note that each goal node can't have more than one incoming goal arrow (otherwise it's not a tree) and if some goal doesn't have an incoming arrow (except the top level goal) it wouldn't be reachable from the top goal. Therefore we conclude that a reasonable choice is to connect goalBefore to all InfoTree subgoals with no incoming arrows. We would call these goals justifying goalsBefore/goalsAfter transition the spawned goals and will depict it in a second square brackets in our arrow notation: 1 -> [], [2, 3].
+Relative location of `TacticInfo` nodes inside `InfoTree` can be used to infer what tactics were contributing to construction of the proof term for the outer tactic. In the InfoTree subtree for cases tactic we can see all low-level granularity `TacticInfo` nodes.
+
+How do we establish which `TacticInfo` nodes goals we should directly connect to the goalBefore of the outer cases tactic? Note that each goal node can't have more than one incoming goal arrow (otherwise it's not a tree) and if some goal doesn't have an incoming arrow (except the top level goal) it wouldn't be reachable from the top goal. Therefore we conclude that a reasonable choice is to connect `goalBefore` to all `InfoTree` subgoals with no incoming arrows. We would call these goals justifying `goalsBefore/goalsAfter` transition the **spawned goals** and will depict it in a second square brackets in our arrow notation: `1 -> [], [2, 3]`.
 
 ### How tactics like have fit into the model?
 
-To wrap up let's take a look how tactics like have fit into the model and can be handled in generic way instead of a hardcoded handling of have tactic. The example above generates the following arrow for the have tactic: 1 -> [2], [3, 4]. You might have thought that the goal doesn't change during have, but even though the type doesn't change and we still need to prove 3 < 5 the hypothesis in the context are extended with h1: 3 < 4 and h2: 4 < 5. You can think of it as generating the following assignment mvar1 := let h1 := ... in let h2 := ... in mvar2.
+![Have proof](/assets/img/haveproof_example.png)
+![Have proof tree](/assets/img/haveprooftree_example.png)
 
-However in the final proof tree rendered by **paperproof** you wouldn't see a new node for the goal 2 and the goal 1 node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a have tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
+To wrap up let's take a look how tactics like have fit into the model and can be handled in generic way instead of a hardcoded handling of have tactic. The example above generates the following arrow for the have tactic: `1 -> [2], [3, 4]`. You might have thought that the goal doesn't change during have, but even though the type doesn't change and we still need to prove `3 < 5` the hypothesis in the context are extended with `h1: 3 < 4` and `h2: 4 < 5`. You can think of it as generating the following assignment `mvar1 := let h1 := ... in let h2 := ... in mvar2`.
+
+However in the final proof tree rendered by **paperproof** you wouldn't see a new node for the goal `2` and the goal `1` node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a have tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
