@@ -33,7 +33,7 @@ Note that I'll consistently mark goals with purple and orange colours, using ora
 
 ### What is an InfoTree?
 
-![InfoTree example](/assets/img/infotree_example.png)
+![InfoTree example](/assets/img/infotree.png)
 
 Elaboration in Lean compiler is the process turning `Syntax` (can be user defined) into something Lean compiler can work with. For example term elaborators will turn `Syntax` into an `Expr` (simple dependent-type lambda term). Whether tactic elaborators might assign some metavariables (more on this in a sec) and generate new ones.
 
@@ -66,7 +66,7 @@ Tactics `swap; assumption` (swap goals order first and then tries to close first
 
 ![Custom tactic example](/assets/img/customtactic.png)
 
-User defined `myCrusherTactic` somehow simplifies goals (unknown at the time we implement the `InfoTree` to proof tree parser). In the example above it splits goals `1, 2` into `3, 4, 5, 6`, however there is no information, required for the proof tree arrows, on what goals the goal `1` bifurcated into and what goals the goal `2`.
+User defined `myCrusherTactic` somehow simplifies goals (unknown at the time we implement the `InfoTree` to proof tree parser). In the example above it splits goals `1, 2` into `3, 4, 5, 6`, however there is no information, required for the proof tree arrows, on what goals the goal `1` bifurcated into and what goals the goal `2` bifurcated into.
 
 ### Using MetavarContext to resolve arrows
 
@@ -111,7 +111,7 @@ By the time we're looking at the assignment to `mvar1` some mvars which we are i
 ![Disjoint tree](/assets/img/spawnedgoals_example.png)
 ![Spawned goals](/assets/img/spawnedgoals_infotree.png)
 
-Relative location of `TacticInfo` nodes inside `InfoTree` can be used to infer what tactics were contributing to construction of the proof term for the outer tactic. In the InfoTree subtree for cases tactic we can see all low-level granularity `TacticInfo` nodes.
+Relative location of `TacticInfo` nodes inside `InfoTree` can be used to infer what tactics were contributing to construction of the proof term for the outer tactic. In the `InfoTree` subtree for cases tactic we can see all low-level granularity `TacticInfo` nodes.
 
 How do we establish which `TacticInfo` nodes goals we should directly connect to the goalBefore of the outer cases tactic? Note that each goal node can't have more than one incoming goal arrow (otherwise it's not a tree) and if some goal doesn't have an incoming arrow (except the top level goal) it wouldn't be reachable from the top goal. Therefore we conclude that a reasonable choice is to connect `goalBefore` to all `InfoTree` subgoals with no incoming arrows. We would call these goals justifying `goalsBefore/goalsAfter` transition the **spawned goals** and will depict it in a second square brackets in our arrow notation: `1 -> [], [2, 3]`.
 
@@ -120,6 +120,6 @@ How do we establish which `TacticInfo` nodes goals we should directly connect to
 ![Have proof](/assets/img/haveproof_example.png)
 ![Have proof tree](/assets/img/haveprooftree_example.png)
 
-To wrap up let's take a look how tactics like have fit into the model and can be handled in generic way instead of a hardcoded handling of have tactic. The example above generates the following arrow for the have tactic: `1 -> [2], [3, 4]`. You might have thought that the goal doesn't change during have, but even though the type doesn't change and we still need to prove `3 < 5` the hypothesis in the context are extended with `h1: 3 < 4` and `h2: 4 < 5`. You can think of it as generating the following assignment `mvar1 := let h1 := ... in let h2 := ... in mvar2`.
+To wrap up let's take a look how tactics like `have` fit into the model and can be handled in generic way instead of a hardcoded handling of `have` tactic. The example above generates the following arrow for the have tactic: `1 -> [2], [3, 4]`. You might have thought that the goal doesn't change during `have`, but even though the type doesn't change and we still need to prove `3 < 5` the hypothesis in the context are extended with `h1: 3 < 4` and `h2: 4 < 5`. You can think of it as generating the following assignment `mvar1 := let h1 := ... in let h2 := ... in mvar2`.
 
-However in the final proof tree rendered by paperproof you wouldn't see a new node for the goal `2` and the goal `1` node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a have tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
+However in the final proof tree rendered by paperproof you wouldn't see a new node for the goal `2` and the goal `1` node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a `have` tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
