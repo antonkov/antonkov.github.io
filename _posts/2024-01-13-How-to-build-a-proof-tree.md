@@ -7,16 +7,16 @@ tags: [paperproof, InfoTree, Lean, visualization, proof tree, metaprogramming] #
 
 This post outlines how to build proof trees visualized in **paperproof**.
 
-**paperproof** is a Lean theorem proving interface which feels like pen-and-paper proofs.
-See more [github](https://github.com/Paper-Proof/**paperproof**)
+paperproof is a Lean theorem proving interface which feels like pen-and-paper proofs.
+See more [github](https://github.com/Paper-Proof/paperproof)
 
 It was also presented at the Lean Together 2024 conference: [recording](https://www.youtube.com/watch?v=DWuAGt2RDaM).
 
 ## Overview
 
-I'll start by describing what is a data structure **paperproof** expects for visualization. We will call it **proof tree**. Then I'll have an overview what information is available from Lean compiler, in particular a data structure which Lean compiler provides called **InfoTree**.
+I'll start by describing what is a data structure paperproof expects for visualization. We will call it **proof tree**. Then I'll have an overview what information is available from Lean compiler, in particular a data structure which Lean compiler provides called **InfoTree**.
 
-We will then discuss how you can work with an InfoTree to obtain desirable proof tree representation. Even though we will work through a particular case of **paperproof** I expect the technique to be generally useful, especially for researchers looking towards scraping more and more "how proof develops" data for AI/ML.
+We will then discuss how you can work with an InfoTree to obtain desirable proof tree representation. Even though we will work through a particular case of paperproof I expect the technique to be generally useful, especially for researchers looking towards scraping more and more "how proof develops" data for AI/ML.
 
 ### What is a proof tree?
 
@@ -25,7 +25,7 @@ We will use the following proof as an example:
 ![Proof example](/assets/img/dijs_example.png)
 ![Proof tree example](/assets/img/prooftree_example.png)
 
-On the picture you see an example of a proof tree rendered with **paperproof**. Goals are represented as red nodes which form a tree. It comes from the fact that each tactic transforms a goal: either refines, bifurcates or closes it. We will also shortly look at it from a metavariable assignment point of view which will make the tree even more evident. Hypothesis (green nodes) also form a set of trees, but we will not discuss them today.
+On the picture you see an example of a proof tree rendered with paperproof. Goals are represented as red nodes which form a tree. It comes from the fact that each tactic transforms a goal: either refines, bifurcates or closes it. We will also shortly look at it from a metavariable assignment point of view which will make the tree even more evident. Hypothesis (green nodes) also form a set of trees, but we will not discuss them today.
 
 How a tactic when applied transforms a goal into a set of goals I'd call an **Arrow**. For example tactic `cases h` transforms goal `2` into goals `[3, 4]` where different alternatives of the hypothesis `h` are assumed. Whether tactic `exact Or.inl hq` closes goal `4`, or in other words transform it into an empty set `[]`.
 
@@ -122,4 +122,4 @@ How do we establish which `TacticInfo` nodes goals we should directly connect to
 
 To wrap up let's take a look how tactics like have fit into the model and can be handled in generic way instead of a hardcoded handling of have tactic. The example above generates the following arrow for the have tactic: `1 -> [2], [3, 4]`. You might have thought that the goal doesn't change during have, but even though the type doesn't change and we still need to prove `3 < 5` the hypothesis in the context are extended with `h1: 3 < 4` and `h2: 4 < 5`. You can think of it as generating the following assignment `mvar1 := let h1 := ... in let h2 := ... in mvar2`.
 
-However in the final proof tree rendered by **paperproof** you wouldn't see a new node for the goal `2` and the goal `1` node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a have tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
+However in the final proof tree rendered by paperproof you wouldn't see a new node for the goal `2` and the goal `1` node will be reused. This UI decluttering is possible when the goal doesn't bifurcate (we don't need a new scope box) and keeps it's type unchanged (no new red node needed either). One other implication is that spawned goals can be lifted up and displayed directly above the hypothesis introduced instead of bifurcating the final goal. Note that the decluttering condition doesn't check if it's a have tactic anywhere, it's capable to draw conclusion simply looking at the arrow information.
