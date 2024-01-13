@@ -37,7 +37,7 @@ Note that I'll consistently mark goals with purple and orange colours, using ora
 
 Elaboration in Lean compiler is the process turning `Syntax` (can be user defined) into something Lean compiler can work with. For example term elaborators will turn `Syntax` into an `Expr` (simple dependent-type lambda term). Whether tactic elaborators might assign some metavariables (more on this in a sec) and generate new ones.
 
-![withInfoContext](/assets/img/withInfoContext.png)
+![withInfoContext](/assets/img/withinfocontext.png)
 
 Some elaborators just turn `Syntax` into a simpler `Syntax` and ask compiler to continue elaboration with other elaborators recursively. To record this delegation an elaborator can wrap the continuation inside `withInfoContext` with elaboration Info it generated. All `Info` nodes are organized into the **InfoTree**. Since `Syntax` is a tree structure formed by inclusion of syntax ranges the produced `InfoTree` inherits the same property.
 
